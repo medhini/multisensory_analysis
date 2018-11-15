@@ -19,7 +19,7 @@ VIDEO_CONTAINER = "mp4"
 # Random video settings
 CATEGORY_WHITELIST = [] # AudioSet terms to use.  If empty, uses all of them.
 RANDOM_SEED = 0
-NUM_VIDEOS = 10
+NUM_VIDEOS = 4000
 
 def main(argv):
     # Parse args
@@ -112,7 +112,16 @@ def sample_clips(youtube_clips, num_clips, wanted_ids=[]):
     random.seed(RANDOM_SEED)
     return random.sample(whitelist_clips, num_clips)
 
-def download_one_clip(clip, output_dir):
+def download_one_clip(clip, output_dir, index=None):
+    """Downloads one YouTube clip.
+    
+    Arguments:
+        clip {YouTubeClip} -- clip to download
+        output_dir {string} -- output directory
+    
+    Keyword Arguments:
+        index {int} -- Number to prepend to print statements (default: {None})
+    """    
     if not output_dir.endswith("/"):
         output_dir += "/"
     output_dir += clip.labels[0].replace("/", "_") + "/"
@@ -123,7 +132,13 @@ def download_one_clip(clip, output_dir):
     audio_filepath = "%s%s.%s" % (output_dir, clip.to_string(), AUDIO_CONTAINER)
 
     youtube_url = "https://www.youtube.com/watch?v=%s" % clip.id
-    video = pafy.new(youtube_url)
+    video = None
+    try:
+        video = pafy.new(youtube_url)
+    except:
+        print("Error:", youtube_url, "is invalid or unavailable", file=sys.stderr)
+        return
+        
     video_download_args = ["ffmpeg", "-n",
         "-ss", str(clip.trim_start), # The beginning of the trim window
         "-i", video.getbestvideo().url,   # Specify the input video URL
@@ -136,9 +151,9 @@ def download_one_clip(clip, output_dir):
     process = subprocess.Popen(video_download_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
     if process.returncode != 0:
-        sys.stderr.write(stderr.decode('utf-8'))
+        print(stderr.decode('utf-8'), file=sys.stderr)
     else:
-        print(video_filepath)
+        print(index, video_filepath)
 
     audio_download_args = ["ffmpeg", "-n",
         "-ss", str(clip.trim_start),  # The beginning of the trim window
@@ -154,9 +169,9 @@ def download_one_clip(clip, output_dir):
     process = subprocess.Popen(audio_download_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
     if process.returncode != 0:
-        sys.stderr.write(stderr.decode('utf-8'))
+        print(stderr.decode('utf-8'), file=sys.stderr)
     else:
-        print(audio_filepath)
+        print(index, audio_filepath)
 
 if __name__ == "__main__":
     main(sys.argv)
