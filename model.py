@@ -146,5 +146,14 @@ class alignment(nn.Module):
 
         #tile audio, concatenate channel wise
 
+        out_joint = self.conv3_2(out_joint)
+        out_joint = self.conv3_3(out_joint)
+        out_joint = self.joint_net_1(out_joint)
+        out_joint = self.joint_net_2(out_joint)
+        out_joint = self.joint_net_3(out_joint)
+
+        
+
+
         
         
