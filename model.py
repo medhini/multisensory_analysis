@@ -139,4 +139,12 @@ class alignment(nn.Module):
         out_s = self.s_net_1(out_s)
         out_s = self.s_net_2(out_s)
         out_s = self.s_net_3(out_s)
+
+        out_im = self.conv3_1(x_i)
+        out_im = self.pool3_1(out_im)
+        out_im = self.im_net_1(out_im)
+
+        #tile audio, concatenate channel wise
+
+        
         
