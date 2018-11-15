@@ -90,11 +90,11 @@ class alignment(nn.Module):
         self.im_net_1 = self._make_layer(block3, 1, 64, (3,3,3), (2,2,2), 2)
 
         """Fuse Features"""
-        self.conv3_2 = nn.Conv3d(1, 64, (5,7,7), (2,2,2), padding=0, dilation=1, groups=1, bias=True)
-        self.conv3_3 = nn.Conv3d(1, 64, (5,7,7), (2,2,2), padding=0, dilation=1, groups=1, bias=True)
-        self.joint_net_1 = self._make_layer(block3, 1, 64, (3,3,3), (2,2,2), 2)
-        self.joint_net_2 = self._make_layer(block3, 1, 64, (3,3,3), (2,2,2), 2)
-        self.joint_net_3 = self._make_layer(block3, 1, 64, (3,3,3), (2,2,2), 2)
+        self.conv3_2 = nn.Conv3d(1, 512, (1, 1, 1))
+        self.conv3_3 = nn.Conv3d(512, 128, (1, 1, 1])
+        self.joint_net_1 = self._make_layer(block3, 128, 128, (3,3,3), (2,2,2), 2)
+        self.joint_net_2 = self._make_layer(block3, 128, 256, (3,3,3), (1,2,2), 2)
+        self.joint_net_3 = self._make_layer(block3, 256, 512, (3,3,3), (1,2,2), 2)
 
         #TODO: Global avg pooling, fc and sigmoid
 
@@ -151,6 +151,7 @@ class alignment(nn.Module):
         out_joint = self.joint_net_1(out_joint)
         out_joint = self.joint_net_2(out_joint)
         out_joint = self.joint_net_3(out_joint)
+
 
         
 
