@@ -85,13 +85,18 @@ class alignment(nn.Module):
         self.conv1_2 = nn.Conv1d(1, 128, 3, stride=4, padding=0, dilation=1, groups=1, bias=True)
         
         """Image Features"""
-        self.im_met_1 = nn.Conv3d(1, 64, (5,7,7), (2,2,2), padding=0, dilation=1, groups=1, bias=True)
+        self.conv3_1 = nn.Conv3d(1, 64, (5,7,7), (2,2,2), padding=0, dilation=1, groups=1, bias=True)
         self.pool3_1 = nn.MaxPool3d((1,2,2), (1,3,3))
-        self.im_net_2 = self._make_layer(block3, 1, 64, (3,3,3), (2,2,2), 2)
+        self.im_net_1 = self._make_layer(block3, 1, 64, (3,3,3), (2,2,2), 2)
 
         """Fuse Features"""
+        self.conv3_2 = nn.Conv3d(1, 64, (5,7,7), (2,2,2), padding=0, dilation=1, groups=1, bias=True)
+        self.conv3_3 = nn.Conv3d(1, 64, (5,7,7), (2,2,2), padding=0, dilation=1, groups=1, bias=True)
+        self.joint_net_1 = self._make_layer(block3, 1, 64, (3,3,3), (2,2,2), 2)
+        self.joint_net_2 = self._make_layer(block3, 1, 64, (3,3,3), (2,2,2), 2)
+        self.joint_net_3 = self._make_layer(block3, 1, 64, (3,3,3), (2,2,2), 2)
 
-        
+        #TODO: Global avg pooling, fc and sigmoid
 
     def _make_layer(self, block, in_channels, out_channels, kernel_size, stride, blocks):
         downsample = None
@@ -130,3 +135,8 @@ class alignment(nn.Module):
     def forward(self, batchsize, x_s, x_i):
         out_s = self.conv1_1(x_s)
         out_s = self.max_pool1_1(out_s)
+
+        out_s = self.s_net_1(out_s)
+        out_s = self.s_net_2(out_s)
+        out_s = self.s_net_3(out_s)
+        
