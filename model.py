@@ -7,16 +7,16 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 
-class BasicBlock(nn.Module):
+class Block2(nn.Module):
     expansion = 1
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None):
-        super(BasicBlock, self).__init__()
-        self.conv1 = nn.Conv3d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True)
-        self.bn1 = nn.BatchNorm2d(planes)
+    def __init__(self, in_channels, out_channels, kernel_size, stride, downsample=None):
+        super(Block2, self).__init__()
+        self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
+        self.bn1 = nn.BatchNorm1d(out_channels)
         self.relu = nn.ReLU(inplace=True)
-        self.conv2 = nn.Conv3d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True)
-        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
+        self.bn2 = nn.BatchNorm1d(out_channels)
         self.downsample = downsample
         self.stride = stride
 
@@ -38,26 +38,95 @@ class BasicBlock(nn.Module):
 
         return out
 
+class Block3(nn.Module):
+    expansion = 1
+
+    def __init__(self, in_channels, out_channels, kernel_size, stride, downsample=None):
+        super(Block3, self).__init__()
+        self.conv1 = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
+        self.bn1 = nn.BatchNorm3d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
+        self.bn2 = nn.BatchNorm3d(out_channels)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+ 
 class alignment(nn.Module):
-    def __init__(self, batchsize, ):
+    def __init__(self, batchsize, block2, block3):
         self.batchsize = batchsize
 
         """Sound Features"""
-        self.conv1_1 = nn.Conv1d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True)
-        self.conv1_2 = nn.Conv1d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True)
-        self.conv1_3 = nn.Conv1d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True)
-        self.conv1_4 = nn.Conv1d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True)
-        self.conv1_5 = nn.Conv1d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True)
-        self.bn_1 = nn.nn.BatchNorm1d(num_feats)
-        self.pool1_1 = F.max_pool1d(input, kernel_size, stride=None, padding=0, dilation=1, ceil_mode=False, return_indices=False)
-        self.pool1_2 = F.max_pool1d(input, kernel_size, stride=None, padding=0, dilation=1, ceil_mode=False, return_indices=False)
+        self.conv1_1 = nn.Conv1d(1, 64, 65, stride=4, padding=0, dilation=1, groups=1, bias=True)
+        self.pool1_1 = nn.MaxPool1d(4, stride=4)
+
+        self.s_net_1 = self._make_layer(block2, 64, 128, 15, 4, 1)
+        self.s_net_2 = self._make_layer(block2, 128, 128, 15, 4, 1)
+        self.s_net_3 = self._make_layer(block2, 128, 256, 15, 4, 1)
+        
+        self.pool1_2 = nn.MaxPool1d(3, stride=4)
+        self.conv1_2 = nn.Conv1d(1, 128, 3, stride=4, padding=0, dilation=1, groups=1, bias=True)
         
         """Image Features"""
-        self.pool3_1 = F.max_pool3d(input, kernel_size, stride=None, padding=0, dilation=1, ceil_mode=False, return_indices=False)
-        self.conv3d = nn.Conv3d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True)
-        self.conv3d = nn.Conv3d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True)
+        self.im_met_1 = nn.Conv3d(1, 64, (5,7,7), (2,2,2), padding=0, dilation=1, groups=1, bias=True)
+        self.pool3_1 = nn.MaxPool3d((1,2,2), (1,3,3))
+        self.im_net_2 = self._make_layer(block3, 1, 64, (3,3,3), (2,2,2), 2)
 
         """Fuse Features"""
+
         
 
-    def forward(self, batchsize):
+    def _make_layer(self, block, in_channels, out_channels, kernel_size, stride, blocks):
+        downsample = None
+        if stride != 1 or in_channels != out_channels * block.expansion:
+            downsample = nn.Sequential(
+                nn.Conv1d(in_channels, out_channels * block.expansion, kernel_size, stride),
+                nn.BatchNorm1d(out_channels * block.expansion),
+            )
+
+        layers = []
+        layers.append(block(in_channels, out_channels, stride, downsample))
+        self.inplanes = out_channels * block.expansion
+        for _ in range(1, blocks):
+            layers.append(block(in_channels, out_channels))
+
+        return nn.Sequential(*layers)
+
+    # def block_2(self, in_channels, out_channels, kernel_size, stride, downsample=None):
+    #     self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
+    #     self.bn1 = nn.BatchNorm1d(out_channels)
+    #     self.relu = nn.ReLU(inplace=True)
+    #     self.conv2 = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
+    #     self.bn2 = nn.BatchNorm1d(out_channels)
+    #     self.downsample = downsample
+    #     self.stride = stride
+
+    # def block_3(self, in_channels, out_channels, kernel_size, stride, downsample=None):
+    #     self.conv1 = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
+    #     self.bn1 = nn.BatchNorm3d(out_channels)
+    #     self.relu = nn.ReLU(inplace=True)
+    #     self.conv2 = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
+    #     self.bn2 = nn.BatchNorm3d(out_channels)
+    #     self.downsample = downsample
+    #     self.stride = stride
+
+    def forward(self, batchsize, x_s, x_i):
+        out_s = self.conv1_1(x_s)
+        out_s = self.max_pool1_1(out_s)
