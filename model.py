@@ -72,14 +72,13 @@ class Block3(nn.Module):
 class alignment(nn.Module):
     def __init__(self, batchsize, block2, block3):
         self.batchsize = batchsize
-
         """Sound Features"""
-        self.conv1_1 = nn.Conv1d(1, 64, 65, stride=4, padding=0, dilation=1, groups=1, bias=True)
+        self.conv1_1 = nn.Conv1d(2, 64, 65, stride=4, padding=0, dilation=1, groups=1, bias=True)
         self.pool1_1 = nn.MaxPool1d(4, stride=4)
 
-        self.s_net_1 = self._make_layer(block2, 64, 128, 15, 4, 1)
-        self.s_net_2 = self._make_layer(block2, 128, 128, 15, 4, 1)
-        self.s_net_3 = self._make_layer(block2, 128, 256, 15, 4, 1)
+        self.s_net_1 = self._make_layer(Block2, 64, 128, 15, 4, 1)
+        self.s_net_2 = self._make_layer(Block2, 128, 128, 15, 4, 1)
+        self.s_net_3 = self._make_layer(Block2, 128, 256, 15, 4, 1)
         
         self.pool1_2 = nn.MaxPool1d(3, stride=4)
         self.conv1_2 = nn.Conv1d(1, 128, 3, stride=4, padding=0, dilation=1, groups=1, bias=True)
@@ -92,9 +91,9 @@ class alignment(nn.Module):
         """Fuse Features"""
         self.conv3_2 = nn.Conv3d(1, 512, (1, 1, 1))
         self.conv3_3 = nn.Conv3d(512, 128, (1, 1, 1])
-        self.joint_net_1 = self._make_layer(block3, 128, 128, (3,3,3), (2,2,2), 2)
-        self.joint_net_2 = self._make_layer(block3, 128, 256, (3,3,3), (1,2,2), 2)
-        self.joint_net_3 = self._make_layer(block3, 256, 512, (3,3,3), (1,2,2), 2)
+        self.joint_net_1 = self._make_layer(Block3, 128, 128, (3,3,3), (2,2,2), 2)
+        self.joint_net_2 = self._make_layer(Block3, 128, 256, (3,3,3), (1,2,2), 2)
+        self.joint_net_3 = self._make_layer(Block3, 256, 512, (3,3,3), (1,2,2), 2)
 
         #TODO: Global avg pooling, fc and sigmoid
 
@@ -151,8 +150,6 @@ class alignment(nn.Module):
         out_joint = self.joint_net_1(out_joint)
         out_joint = self.joint_net_2(out_joint)
         out_joint = self.joint_net_3(out_joint)
-
-
         
 
 
