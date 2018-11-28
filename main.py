@@ -48,9 +48,7 @@ def train(args):
 
     train_dataset = AudioDataset(train=True,transform=transform)
 
-    train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
-                                           batch_size=args.batchsize, 
-                                           shuffle=True, num_workers=4)
+    train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=args.batchsize, shuffle=True, num_workers=4)
 
     model_align = alignment(args.batchsize)
     model_align.cuda()
@@ -93,4 +91,4 @@ if __name__ == '__main__':
 	if(args.is_train == 1): 
 		train(args)
 
-	test(args)
+	# test(args)
