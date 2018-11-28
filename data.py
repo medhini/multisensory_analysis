@@ -87,7 +87,6 @@ class AudioDataset(Dataset):
         self.frames_len = frames_len
         
         dataset = h5py.File(h5_file)
-        print(len(dataset))
         self.videos_train = np.array(dataset['videos_train'])
         self.sounds_train = np.array(dataset['sounds_train'])
         self.videos_test = np.array(dataset['videos_test'])

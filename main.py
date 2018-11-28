@@ -3,8 +3,10 @@ import os.path as osp
 import argparse
 import numpy as np 
 import time
+import torchvision.transforms as transforms
+import torch.optim as optim
 from data import AudioDataset
-from model import 
+from model import alignment
 
 parser = argparse.ArgumentParser(description='PyTorch Audio-Visual')
 
@@ -16,10 +18,10 @@ parser.add_argument('-g', '--gpu', type=int, default=0,\
 parser.add_argument('-t', '--is_train', type=int, default=1,\
                     help='use 1 to train model')
 
-parser.add_argument('-e', '--epochs', type=int, default=50,\
+parser.add_argument('-e', '--epochs', type=int, default=1,\
                     help='number of training epochs')
 
-parser.add_argument('-b', '--batchsize', type=int, default=100,\
+parser.add_argument('-b', '--batchsize', type=int, default=5,\
                     help='number of samples per training batch')
 
 parser.add_argument('-m', '--nthreads', type=int, default=4,\
@@ -44,18 +46,23 @@ def train(args, dataset):
     train_dataset = AudioDataset(train=True,transform=transform)
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
-                                           batch_size=5, 
+                                           batch_size=args.batchsize, 
                                            shuffle=True, num_workers=4)
 
-    print(len(train_loader))
+    model_align = alignment(args.batchsize)
+    model_align.cuda()
+    model_align.train(True)
 
-    for images, sounds, labels in train_loader:
-        print(images.shape)
-        print(sounds.shape)
-        print(labels.shape)
+    loss = nn.CrossEntropyLoss()
 
+    optimizer_align = optim.Adam(model_align.parameters(), lr = args.learning_rate)
+
+    for epoch in range(args.epochs):
+        for batch_idx, (images, sounds, labels) in enumerate(train_loader):
+            print(images.shape)
+            print(sounds.shape)
+            print(labels.shape)
         break
-
 
 
 def test(args, dataset):
