@@ -71,6 +71,8 @@ class Block3(nn.Module):
  
 class alignment(nn.Module):
     def __init__(self, batchsize):
+        super(alignment, self).__init__()
+
         self.batchsize = batchsize
         """Sound Features"""
         self.conv1_1 = nn.Conv1d(2, 64, 65, stride=4, padding=0, dilation=1, groups=1, bias=True)
@@ -86,7 +88,7 @@ class alignment(nn.Module):
         """Image Features"""
         self.conv3_1 = nn.Conv3d(1, 64, (5,7,7), (2,2,2), padding=0, dilation=1, groups=1, bias=True)
         self.pool3_1 = nn.MaxPool3d((1,2,2), (1,3,3))
-        self.im_net_1 = self._make_layer(block3, 1, 64, (3,3,3), (2,2,2), 2)
+        self.im_net_1 = self._make_layer(Block3, 1, 64, (3,3,3), (2,2,2), 2)
 
         """Fuse Features"""
         self.conv3_2 = nn.Conv3d(1, 512, (1, 1, 1))
@@ -109,7 +111,7 @@ class alignment(nn.Module):
         layers.append(block(in_channels, out_channels, stride, downsample))
         self.inplanes = out_channels * block.expansion
         for _ in range(1, blocks):
-            layers.append(block(in_channels, out_channels))
+            layers.append(block(in_channels, out_channels, stride, downsample))
 
         return nn.Sequential(*layers)
 

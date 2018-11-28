@@ -6,6 +6,8 @@ import time
 import torch
 import torchvision.transforms as transforms
 import torch.optim as optim
+import torch.nn as nn
+from torch.autograd import Variable
 from data import AudioDataset
 from model import alignment
 
@@ -65,12 +67,12 @@ def train(args):
 
             optimizer_align.zero_grad()
 
-            aligned_res = model(args.batchsize, sounds, images)
+            aligned_res = model_align(args.batchsize, sounds, images)
 
             loss = loss_fn(aligned_res, labels)
-			loss.backward()
-
-			optimizer_align.step()
+            loss.backward()
+            
+            optimizer_align.step()
 
             print(images.shape)
             print(sounds.shape)

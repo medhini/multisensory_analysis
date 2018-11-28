@@ -137,33 +137,33 @@ class AudioDataset(Dataset):
 
 
 # Image preprocessing modules
-transform = transforms.Compose([
-    transforms.ToPILImage(),
-    transforms.RandomHorizontalFlip(),
-    transforms.RandomCrop(224),
-    transforms.ToTensor()])
+# transform = transforms.Compose([
+#     transforms.ToPILImage(),
+#     transforms.RandomHorizontalFlip(),
+#     transforms.RandomCrop(224),
+#     transforms.ToTensor()])
 
-# CIFAR-10 dataset
-train_dataset = AudioDataset(train=True,transform=transform)
-test_dataset = AudioDataset(train=False,transform=transforms.ToTensor())
+# # CIFAR-10 dataset
+# train_dataset = AudioDataset(train=True,transform=transform)
+# test_dataset = AudioDataset(train=False,transform=transforms.ToTensor())
 
-# # Data loader
-train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
-                                           batch_size=5, 
-                                           shuffle=True, num_workers=4)
+# # # Data loader
+# train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
+#                                            batch_size=5, 
+#                                            shuffle=True, num_workers=4)
 
-test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
-                                           batch_size=5, 
-                                           shuffle=False, num_workers=4)
-
-
-# In[31]:
+# test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
+#                                            batch_size=5, 
+#                                            shuffle=False, num_workers=4)
 
 
-for images, sounds, labels in train_loader:
-    print(images.shape)
-    print(sounds.shape)
-    print(labels.shape)
+# # In[31]:
+
+
+# for images, sounds, labels in train_loader:
+#     print(images.shape)
+#     print(sounds.shape)
+#     print(labels.shape)
 
 
 # In[ ]:
