@@ -3,6 +3,7 @@ import os.path as osp
 import argparse
 import numpy as np 
 import time
+import torch
 import torchvision.transforms as transforms
 import torch.optim as optim
 from data import AudioDataset
@@ -36,7 +37,7 @@ parser.add_argument('-hs', '--n_hidden', type=int, default=128,\
 args = parser.parse_args()
 
 
-def train(args, dataset):
+def train(args):
     transform = transforms.Compose([
     transforms.ToPILImage(),
     transforms.RandomHorizontalFlip(),
@@ -53,29 +54,41 @@ def train(args, dataset):
     model_align.cuda()
     model_align.train(True)
 
-    loss = nn.CrossEntropyLoss()
+    loss_fn = nn.CrossEntropyLoss()
 
     optimizer_align = optim.Adam(model_align.parameters(), lr = args.learning_rate)
 
     for epoch in range(args.epochs):
         for batch_idx, (images, sounds, labels) in enumerate(train_loader):
+            images_v = Variable(images).cuda()
+            sounds_v = Variable(sounds).cuda()
+
+            optimizer_align.zero_grad()
+
+            aligned_res = model(args.batchsize, sounds, images)
+
+            loss = loss_fn(aligned_res, labels)
+			loss.backward()
+
+			optimizer_align.step()
+
             print(images.shape)
             print(sounds.shape)
             print(labels.shape)
         break
 
 
-def test(args, dataset):
+def test(args):
     test_dataset = AudioDataset(train=False,transform=transforms.ToTensor())
 
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
-                                           batch_size=5, 
+                                           batch_size=args.batchsize, 
                                            shuffle=False, num_workers=4)
 
 if __name__ == '__main__':
 	os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 
 	if(args.is_train == 1): 
-		train(args, dataset)
+		train(args)
 
-	test(args, dataset)
+	test(args)

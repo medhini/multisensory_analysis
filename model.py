@@ -131,15 +131,15 @@ class alignment(nn.Module):
     #     self.downsample = downsample
     #     self.stride = stride
 
-    def forward(self, batchsize, x_s, x_i):
-        out_s = self.conv1_1(x_s)
+    def forward(self, batchsize, sounds, images):
+        out_s = self.conv1_1(sounds)
         out_s = self.max_pool1_1(out_s)
 
         out_s = self.s_net_1(out_s)
         out_s = self.s_net_2(out_s)
         out_s = self.s_net_3(out_s)
 
-        out_im = self.conv3_1(x_i)
+        out_im = self.conv3_1(images)
         out_im = self.pool3_1(out_im)
         out_im = self.im_net_1(out_im)
 
