@@ -58,14 +58,12 @@ class Block3(nn.Module):
         out = self.bn1(out)
         out = self.relu(out)
 
-        print(out.shape)
         out = self.conv2(out)
         out = self.bn2(out)
 
         if self.downsample is not None:
             residual = self.downsample(x)
 
-        print(out.shape, residual.shape)
         out += residual
         out = self.relu(out)
 
@@ -151,6 +149,9 @@ class alignment(nn.Module):
         out_s = self.s_net_1(out_s)
         out_s = self.s_net_2(out_s)
         out_s = self.s_net_3(out_s)
+
+        out_s = self.pool1_2(out_s)
+        out_s = self.conv1_2(out_s)
 
         out_im = self.conv3_1(images)
         out_im = self.pool3_1(out_im)
