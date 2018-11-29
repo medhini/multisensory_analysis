@@ -6,6 +6,14 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 
+import sys
+import math
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.autograd import Variable
+
 class Block2(nn.Module):
     expansion = 1
 
@@ -41,9 +49,9 @@ class Block2(nn.Module):
 class Block3(nn.Module):
     expansion = 1
 
-    def __init__(self, in_channels, out_channels, kernel_size=(1,1,1), stride=1, downsample=None):
+    def __init__(self, in_channels, out_channels, kernel_size=(1,1,1), stride=1, downsample=None, padding=0):
         super(Block3, self).__init__()
-        self.conv1 = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
+        self.conv1 = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding=padding, dilation=1, groups=1, bias=True)
         self.bn1 = nn.BatchNorm3d(out_channels)
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = nn.Conv3d(out_channels, out_channels, kernel_size=(1,1,1), stride=1)
@@ -53,17 +61,14 @@ class Block3(nn.Module):
 
     def forward(self, x):
         residual = x
-        
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
-
         out = self.conv2(out)
         out = self.bn2(out)
-
+        
         if self.downsample is not None:
             residual = self.downsample(x)
-
         out += residual
         out = self.relu(out)
 
@@ -84,12 +89,13 @@ class alignment(nn.Module):
         self.conv1_2 = nn.Conv1d(256, 128, 3, stride=1, padding=0, dilation=1, groups=1, bias=True)
         
         """Image Features"""
-        self.conv3_1 = nn.Conv3d(1, 64, (5,7,7), (2,2,2), padding=0, dilation=1, groups=1, bias=True)
-        self.pool3_1 = nn.MaxPool3d((1,2,2), (1,3,3))
+        self.conv3_1 = nn.Conv3d(1, 64, (5,7,7), (2,2,2), padding=(2,3,3), dilation=1, groups=1, bias=True)
+        self.pool3_1 = nn.MaxPool3d((1,3,3), (1,2,2), padding=(0,1,1))
         self.im_net_1 = self._make_layer(Block3, 64, 64, (3,3,3), (2,2,2), 2)
 
         """Fuse Features"""
-        self.conv3_2 = nn.Conv3d(1, 512, (1, 1, 1))
+        self.fractional_maxpool = nn.FractionalMaxPool2d((3,1), output_size=(10, 1))
+        self.conv3_2 = nn.Conv3d(192, 512, (1, 1, 1))
         self.conv3_3 = nn.Conv3d(512, 128, (1, 1, 1))
         self.joint_net_1 = self._make_layer(Block3, 128, 128, (3,3,3), (2,2,2), 2)
         self.joint_net_2 = self._make_layer(Block3, 128, 256, (3,3,3), (1,2,2), 2)
@@ -105,14 +111,17 @@ class alignment(nn.Module):
                     nn.Conv1d(in_channels, out_channels * block.expansion, kernel_size, stride),
                     nn.BatchNorm1d(out_channels * block.expansion),
                 )
+                layers = []
+                layers.append(block(in_channels, out_channels, kernel_size, stride, downsample))
             else:
                 downsample = nn.Sequential(
-                    nn.Conv3d(in_channels, out_channels * block.expansion, kernel_size, stride),
+                    nn.Conv3d(in_channels, out_channels * block.expansion, kernel_size, stride, padding=1),
                     nn.BatchNorm3d(out_channels * block.expansion),
                 )
+                layers = []
+                layers.append(block(in_channels, out_channels, kernel_size, stride, downsample, padding=1))
 
-        layers = []
-        layers.append(block(in_channels, out_channels, kernel_size, stride, downsample))
+        
         for _ in range(1, blocks):
             layers.append(block(out_channels, out_channels))
 
@@ -140,7 +149,7 @@ class alignment(nn.Module):
 
     def forward(self, batchsize, sounds, images):
         sounds = sounds.view(batchsize, 2, -1)
-        _, num, xd, yd, _ = images.shape
+        _, num, _, xd, yd, = images.shape
         images = images.view(batchsize, 1, num, xd, yd)
         
         out_s = self.conv1_1(sounds)
@@ -152,21 +161,21 @@ class alignment(nn.Module):
 
         out_s = self.pool1_2(out_s)
         out_s = self.conv1_2(out_s)
-
+        
         out_im = self.conv3_1(images)
         out_im = self.pool3_1(out_im)
         out_im = self.im_net_1(out_im)
 
-        print(out_s.shape, out_im.shape)
         #tile audio, concatenate channel wise
-
+        out_s = self.fractional_maxpool(out_s.unsqueeze(3)) # Reduce dimension from 25 to 8
+        out_s = out_s.squeeze(3).view(-1, 1, 1).repeat(1, 28, 28).view(-1,128,10,28,28) # Tile
+        out_joint = torch.cat((out_s, out_im),1)
         out_joint = self.conv3_2(out_joint)
         out_joint = self.conv3_3(out_joint)
         out_joint = self.joint_net_1(out_joint)
         out_joint = self.joint_net_2(out_joint)
         out_joint = self.joint_net_3(out_joint)
-        
-
-
+        print(out_joint.shape)
+        return out_joint
         
         

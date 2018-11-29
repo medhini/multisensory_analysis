@@ -74,7 +74,7 @@ def process_data(data_folder = 'train'):
 class AudioDataset(Dataset):
     """Face Landmarks dataset."""
 
-    def __init__(self, train, frames_len=40, transform=None, h5_file='/home/medhini2/data.h5', transform_label=None):
+    def __init__(self, train, frames_len=40, transform=None, h5_file='data/data.h5', transform_label=None):
         """
         Args:
             train (bool): Whether or not to use training data
@@ -130,7 +130,7 @@ class AudioDataset(Dataset):
             for i in range(self.frames_len):
                 transform_image[i] = self.transform(new_image[i]) # Transform image frames
             
-        return (new_image, audio, label)
+        return (transform_image, audio, label)
 
 
 # In[30]:
