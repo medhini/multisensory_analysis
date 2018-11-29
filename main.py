@@ -81,9 +81,7 @@ def train(args):
 def test(args):
     test_dataset = AudioDataset(train=False,transform=transforms.ToTensor())
 
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
-                                           batch_size=args.batchsize, 
-                                           shuffle=False, num_workers=4)
+    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=args.batchsize, shuffle=False, num_workers=4)
 
 if __name__ == '__main__':
 	os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
