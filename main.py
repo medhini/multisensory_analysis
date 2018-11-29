@@ -50,7 +50,7 @@ def train(args):
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=args.batchsize, shuffle=True, num_workers=4)
 
-    model_align = alignment(args.batchsize)
+    model_align = alignment()
     model_align.cuda()
     model_align.train(True)
 
@@ -60,12 +60,12 @@ def train(args):
 
     for epoch in range(args.epochs):
         for batch_idx, (images, sounds, labels) in enumerate(train_loader):
-            images_v = Variable(images).cuda()
-            sounds_v = Variable(sounds).cuda()
+            images_v = Variable(images.type(torch.FloatTensor)).cuda()
+            sounds_v = Variable(sounds.type(torch.FloatTensor)).cuda()
 
             optimizer_align.zero_grad()
 
-            aligned_res = model_align(args.batchsize, sounds, images)
+            aligned_res = model_align(args.batchsize, sounds_v, images_v)
 
             loss = loss_fn(aligned_res, labels)
             loss.backward()

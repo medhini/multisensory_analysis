@@ -1,5 +1,4 @@
 import sys
-
 import math
 import torch
 import torch.nn as nn
@@ -12,10 +11,11 @@ class Block2(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size, stride, downsample=None):
         super(Block2, self).__init__()
+        self.out_channels = out_channels
         self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
         self.bn1 = nn.BatchNorm1d(out_channels)
         self.relu = nn.ReLU(inplace=True)
-        self.conv2 = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
+        self.conv2 = nn.Conv1d(out_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
         self.bn2 = nn.BatchNorm1d(out_channels)
         self.downsample = downsample
         self.stride = stride
@@ -23,6 +23,7 @@ class Block2(nn.Module):
     def forward(self, x):
         residual = x
 
+        print(x.shape)
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
@@ -33,6 +34,7 @@ class Block2(nn.Module):
         if self.downsample is not None:
             residual = self.downsample(x)
 
+        print(out.shape, residual.shape)
         out += residual
         out = self.relu(out)
 
@@ -46,7 +48,7 @@ class Block3(nn.Module):
         self.conv1 = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
         self.bn1 = nn.BatchNorm3d(out_channels)
         self.relu = nn.ReLU(inplace=True)
-        self.conv2 = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
+        self.conv2 = nn.Conv3d(out_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
         self.bn2 = nn.BatchNorm3d(out_channels)
         self.downsample = downsample
         self.stride = stride
@@ -70,10 +72,8 @@ class Block3(nn.Module):
         return out
  
 class alignment(nn.Module):
-    def __init__(self, batchsize):
+    def __init__(self):
         super(alignment, self).__init__()
-
-        self.batchsize = batchsize
         """Sound Features"""
         self.conv1_1 = nn.Conv1d(2, 64, 65, stride=4, padding=0, dilation=1, groups=1, bias=True)
         self.pool1_1 = nn.MaxPool1d(4, stride=4)
@@ -108,10 +108,9 @@ class alignment(nn.Module):
             )
 
         layers = []
-        layers.append(block(in_channels, out_channels, stride, downsample))
-        self.inplanes = out_channels * block.expansion
+        layers.append(block(in_channels, out_channels, kernel_size, stride, downsample))
         for _ in range(1, blocks):
-            layers.append(block(in_channels, out_channels, stride, downsample))
+            layers.append(block(out_channels, out_channels, kernel_size, stride))
 
         return nn.Sequential(*layers)
 
@@ -134,8 +133,9 @@ class alignment(nn.Module):
     #     self.stride = stride
 
     def forward(self, batchsize, sounds, images):
+        sounds = sounds.view(batchsize, 2, -1)
         out_s = self.conv1_1(sounds)
-        out_s = self.max_pool1_1(out_s)
+        out_s = self.pool1_1(out_s)
 
         out_s = self.s_net_1(out_s)
         out_s = self.s_net_2(out_s)

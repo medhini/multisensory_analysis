@@ -96,7 +96,7 @@ class AudioDataset(Dataset):
     def __len__(self):
         if self.train:
             return len(self.videos_train)
-        return len(self.videos_train)
+        return len(self.videos_test)
 
     def __getitem__(self, idx):
         if self.train:
