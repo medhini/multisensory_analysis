@@ -74,7 +74,7 @@ def process_data(data_folder = 'train'):
 class AudioDataset(Dataset):
     """Face Landmarks dataset."""
 
-    def __init__(self, train, frames_len=40, transform=None, h5_file='/home/medhini2/data.h5', transform_label=None):
+    def __init__(self, train, frames_len=40, transform=None, h5_file='data/data.h5', transform_label=None):
         """
         Args:
             train (bool): Whether or not to use training data
