@@ -80,8 +80,8 @@ class alignment(nn.Module):
         self.s_net_2 = self._make_layer(Block2, 128, 128, 15, 4, 1)
         self.s_net_3 = self._make_layer(Block2, 128, 256, 15, 4, 1)
         
-        self.pool1_2 = nn.MaxPool1d(3, stride=4)
-        self.conv1_2 = nn.Conv1d(1, 128, 3, stride=4, padding=0, dilation=1, groups=1, bias=True)
+        self.pool1_2 = nn.MaxPool1d(3, stride=3)
+        self.conv1_2 = nn.Conv1d(256, 128, 3, stride=1, padding=0, dilation=1, groups=1, bias=True)
         
         """Image Features"""
         self.conv3_1 = nn.Conv3d(1, 64, (5,7,7), (2,2,2), padding=0, dilation=1, groups=1, bias=True)
