@@ -6,14 +6,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 
-import sys
-import math
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.autograd import Variable
-
 class Block2(nn.Module):
     expansion = 1
 
@@ -73,7 +65,13 @@ class Block3(nn.Module):
         out = self.relu(out)
 
         return out
- 
+
+def Linear(in_features, out_features, dropout=0.):
+    m = nn.Linear(in_features, out_features)
+    m.weight.data.normal_(mean=0, std=math.sqrt((1 - dropout) / in_features))
+    m.bias.data.zero_()
+    return nn.utils.weight_norm(m)
+
 class alignment(nn.Module):
     def __init__(self):
         super(alignment, self).__init__()
@@ -102,6 +100,7 @@ class alignment(nn.Module):
         self.joint_net_3 = self._make_layer(Block3, 256, 512, (3,3,3), (1,2,2), 2)
 
         #TODO: Global avg pooling, fc and sigmoid
+        self.fc = Linear(512,2)
 
     def _make_layer(self, block, in_channels, out_channels, kernel_size, stride, blocks):
         downsample = None
@@ -127,27 +126,8 @@ class alignment(nn.Module):
 
         return nn.Sequential(*layers)
 
-    
-
-    # def block_2(self, in_channels, out_channels, kernel_size, stride, downsample=None):
-    #     self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
-    #     self.bn1 = nn.BatchNorm1d(out_channels)
-    #     self.relu = nn.ReLU(inplace=True)
-    #     self.conv2 = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
-    #     self.bn2 = nn.BatchNorm1d(out_channels)
-    #     self.downsample = downsample
-    #     self.stride = stride
-
-    # def block_3(self, in_channels, out_channels, kernel_size, stride, downsample=None):
-    #     self.conv1 = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
-    #     self.bn1 = nn.BatchNorm3d(out_channels)
-    #     self.relu = nn.ReLU(inplace=True)
-    #     self.conv2 = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True)
-    #     self.bn2 = nn.BatchNorm3d(out_channels)
-    #     self.downsample = downsample
-    #     self.stride = stride
-
-    def forward(self, batchsize, sounds, images):
+    def forward(self, sounds, images):
+        batchsize = sounds.shape[0]
         sounds = sounds.view(batchsize, 2, -1)
         _, num, _, xd, yd, = images.shape
         images = images.view(batchsize, 1, num, xd, yd)
@@ -175,7 +155,10 @@ class alignment(nn.Module):
         out_joint = self.joint_net_1(out_joint)
         out_joint = self.joint_net_2(out_joint)
         out_joint = self.joint_net_3(out_joint)
-        print(out_joint.shape)
-        return out_joint
-        
-        
+        feature_maps = out_joint
+        """Global Average Pooling"""
+        out_joint = F.avg_pool3d(out_joint, kernel_size=out_joint.size()[2:]).view(batchsize,-1)
+#         out_joint = out_joint.view(batchsize, 512, -1).mean(2)
+        out_joint = self.fc(out_joint)
+        out_joint = torch.sigmoid(out_joint)
+        return out_joint, feature_maps
