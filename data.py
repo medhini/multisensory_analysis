@@ -74,7 +74,7 @@ def process_data(data_folder = 'train'):
 class AudioDataset(Dataset):
     """Face Landmarks dataset."""
 
-    def __init__(self, train, frames_len=40, transform=None, h5_file='data/data.h5', transform_label=None):
+    def __init__(self, train, frames_len=40, transform=None, h5_file='/media/jeff/Backup/CS598PS/data_2682.h5', transform_label=None):
         """
         Args:
             train (bool): Whether or not to use training data
@@ -87,10 +87,12 @@ class AudioDataset(Dataset):
         self.frames_len = frames_len
         
         dataset = h5py.File(h5_file)
-        self.videos_train = np.array(dataset['videos_train'])
-        self.sounds_train = np.array(dataset['sounds_train'])
-        self.videos_test = np.array(dataset['videos_test'])
-        self.sounds_test = np.array(dataset['sounds_test'])
+        if self.train:
+            self.videos_train = np.array(dataset['videos_train'])
+            self.sounds_train = np.array(dataset['sounds_train'])
+        else:
+            self.videos_test = np.array(dataset['videos_test'])
+            self.sounds_test = np.array(dataset['sounds_test'])
         dataset.close()
         
     def __len__(self):
@@ -107,7 +109,10 @@ class AudioDataset(Dataset):
             audio = self.sounds_test[idx]
 
         # Randomly sample 4 seconds from 10 second clip
-        start = random.randint(0, 100-self.frames_len) # Start frame
+        if random.random() < 0.5:
+            start = random.randint(0,10) # Start frame
+        else:
+            start = random.randint(50,60)
         new_image = np.zeros((self.frames_len,256,256,1), dtype=np.uint8)
         for i in range(self.frames_len):
             new_image[i] = np.expand_dims(image[start+i],2)
@@ -117,21 +122,23 @@ class AudioDataset(Dataset):
             audio = audio[int(start*220500/100.0):int(start*220500/100.0)+88200]
             label = 0
         else: # misalign
-            shift = random.randint(20, 60) # frame shift amount
-            if random.random() < 0.5: # Add shift
-                start = np.clip(start-shift, 0, 100-self.frames_len)
+            if start < 30: # Add shift
+                shift = random.randint(20, 60-start) # frame shift amount
+#                 start = np.clip(start+shift, 0, 100-self.frames_len)
+                start = start+shift
             else: # Subtract shift
-                start = np.clip(start+shift, 0, 100-self.frames_len)
+                shift = random.randint(20, start) # frame shift amount
+#                 start = np.clip(start-shift, 0, 100-self.frames_len)
+                start = start-shift
             audio = audio[int(start*220500/100.0):int(start*220500/100.0)+88200]
             label = 1
             
-        transform_image = np.zeros((self.frames_len,1,224,224), dtype=np.uint8)
+        transform_image = np.zeros((self.frames_len,1,224,224))
         if self.transform:
             for i in range(self.frames_len):
                 transform_image[i] = self.transform(new_image[i]) # Transform image frames
-            
+        
         return (transform_image, audio, label)
-
 
 # In[30]:
 

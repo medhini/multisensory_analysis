@@ -21,72 +21,87 @@ parser.add_argument('-g', '--gpu', type=int, default=0,\
 parser.add_argument('-t', '--is_train', type=int, default=1,\
                     help='use 1 to train model')
 
-parser.add_argument('-e', '--epochs', type=int, default=1,\
+parser.add_argument('-e', '--epochs', type=int, default=500,\
                     help='number of training epochs')
 
-parser.add_argument('-b', '--batchsize', type=int, default=5,\
+parser.add_argument('-b', '--batchsize', type=int, default=16,\
                     help='number of samples per training batch')
 
 parser.add_argument('-m', '--nthreads', type=int, default=4,\
                     help='pytorch data loader threads')
 
-parser.add_argument('-lr', '--learning_rate', type=float, default=1e-3,\
+parser.add_argument('-lr', '--learning_rate', type=float, default=1e-5,\
                     help='learning rate')
 
-parser.add_argument('-hs', '--n_hidden', type=int, default=128,\
-                    help='Size of hidden state of LSTM')
+parser.add_argument('-vf', '--val_freq', type=float, default=25,\
+                    help='number of epochs before testing validation set')
 
 args = parser.parse_args()
 
 
-def train(args):
-    transform = transforms.Compose([
-    transforms.ToPILImage(),
-    transforms.RandomHorizontalFlip(),
-    transforms.RandomCrop(224),
-    transforms.ToTensor()])
+def train(epoch, train_loader, optimizer_align, model_align, loss_fn):
+    accs = []
+    losses = []
+    for batch_idx, (images, sounds, labels) in enumerate(train_loader):
+        images_v = Variable(images.type(torch.FloatTensor)).cuda()
+        sounds_v = Variable(sounds.type(torch.FloatTensor)).cuda()
+        labels_v = Variable(labels).cuda()
+        
+        optimizer_align.zero_grad()
+        aligned_res, _ = model_align(sounds_v, images_v)
+        loss = loss_fn(aligned_res, labels_v)
+        loss.backward()
+        optimizer_align.step()
+        losses.append(loss.item())
+        accs.append(np.mean((torch.argmax(aligned_res,1) == labels_v).detach().cpu().numpy()))
+    print("Epoch :", epoch, np.mean(losses), np.mean(accs))
 
-    train_dataset = AudioDataset(train=True,transform=transform)
+
+
+def test(epoch, test_loader, model_align, loss_fn):
+    accs = []
+    losses = []
+    for batch_idx, (images, sounds, labels) in enumerate(train_loader):
+        with torch.no_grad():
+            images_v = Variable(images.type(torch.FloatTensor)).cuda()
+            sounds_v = Variable(sounds.type(torch.FloatTensor)).cuda()
+            labels_v = Variable(labels).cuda()
+
+            aligned_res, _ = model_align(sounds_v, images_v)
+            loss = loss_fn(aligned_res, labels_v)
+            losses.append(loss.item())
+            accs.append(np.mean((torch.argmax(aligned_res,1) == labels_v).detach().cpu().numpy()))
+    print("Validation :", epoch, np.mean(losses), np.mean(accs))
+
+
+
+if __name__ == '__main__':
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
+    transform = transforms.Compose([
+        transforms.ToPILImage(),
+        # transforms.RandomHorizontalFlip(),
+        transforms.RandomCrop(224),
+        transforms.ToTensor()])
+
+    train_dataset = AudioDataset(train=True,transform=transform, h5_file='data/data.h5')
+    test_dataset = AudioDataset(train=False,transform=transform, h5_file='data/data.h5')
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=args.batchsize, shuffle=True, num_workers=4)
+    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=args.batchsize, shuffle=False, num_workers=4)
+
+    model_align = alignment().cuda()
+#     checkpoint = torch.load("fixed_500.pth")
+#     model_align.load_state_dict(checkpoint.state_dict())
 
     model_align = alignment()
     model_align.cuda()
-    model_align.train(True)
 
     loss_fn = nn.CrossEntropyLoss()
 
     optimizer_align = optim.Adam(model_align.parameters(), lr = args.learning_rate)
-
-    for epoch in range(args.epochs):
-        for batch_idx, (images, sounds, labels) in enumerate(train_loader):
-            images_v = Variable(images.type(torch.FloatTensor)).cuda()
-            sounds_v = Variable(sounds.type(torch.FloatTensor)).cuda()
-
-            optimizer_align.zero_grad()
-
-            aligned_res = model_align(args.batchsize, sounds_v, images_v)
-
-            loss = loss_fn(aligned_res, labels)
-            loss.backward()
-            
-            optimizer_align.step()
-
-            print(images.shape)
-            print(sounds.shape)
-            print(labels.shape)
-        break
-
-
-def test(args):
-    test_dataset = AudioDataset(train=False,transform=transforms.ToTensor())
-
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=args.batchsize, shuffle=False, num_workers=4)
-
-if __name__ == '__main__':
-	os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
-
-	if(args.is_train == 1): 
-		train(args)
-
-	# test(args)
+    
+    if (args.is_train == 1): 
+        for epoch in range(args.epochs):
+            train(epoch, train_loader, optimizer_align, model_align, loss_fn)
+            if (epoch + 1)%args.val_freq == 0:
+                test(epoch, test_loader, model_align, loss_fn)
