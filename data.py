@@ -74,7 +74,7 @@ def process_data(data_folder = 'train'):
 class AudioDataset(Dataset):
     """Face Landmarks dataset."""
 
-    def __init__(self, train, frames_len=40, transform=None, h5_file='data/data.h5', transform_label=None):
+    def __init__(self, train, frames_len=40, transform=None, h5_file='/media/jeff/Backup/CS598PS/data_2682.h5', transform_label=None):
         """
         Args:
             train (bool): Whether or not to use training data
@@ -87,10 +87,12 @@ class AudioDataset(Dataset):
         self.frames_len = frames_len
         
         dataset = h5py.File(h5_file)
-        self.videos_train = np.array(dataset['videos_train'])
-        self.sounds_train = np.array(dataset['sounds_train'])
-        self.videos_test = np.array(dataset['videos_test'])
-        self.sounds_test = np.array(dataset['sounds_test'])
+        if self.train:
+            self.videos_train = np.array(dataset['videos_train'])
+            self.sounds_train = np.array(dataset['sounds_train'])
+        else:
+            self.videos_test = np.array(dataset['videos_test'])
+            self.sounds_test = np.array(dataset['sounds_test'])
         dataset.close()
         
     def __len__(self):
@@ -137,7 +139,6 @@ class AudioDataset(Dataset):
                 transform_image[i] = self.transform(new_image[i]) # Transform image frames
         
         return (transform_image, audio, label)
-
 
 # In[30]:
 
