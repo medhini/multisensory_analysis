@@ -12,7 +12,7 @@ class Ontology:
         self.parent_id_for_id = {}
         for record in records:
             for child_id in record["child_ids"]:
-                parent_for_id[child_id] = record["id"]
+                self.parent_id_for_id[child_id] = record["id"]
 
     def get_record_for_id(self, id):
         return self.record_for_id[id]
