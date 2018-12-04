@@ -2,6 +2,27 @@ import json
 
 ONTOLOGY_FILE = "ontology.json"
 
+class Ontology:
+    def __init__(self):
+        records = []
+        with open(ONTOLOGY_FILE) as f:
+            records = json.load(f)
+        
+        self.record_for_id = {record["id"]: record for record in records}
+        self.parent_id_for_id = {}
+        for record in records:
+            for child_id in record["child_ids"]:
+                parent_for_id[child_id] = record["id"]
+
+    def get_record_for_id(self, id):
+        return self.record_for_id[id]
+
+    def get_most_general_id(self, id):
+        answer_id = id
+        while answer_id in self.parent_id_for_id:
+            answer_id = self.parent_id_for_id[answer_id]
+        return answer_id
+
 def get_records(whitelist):
     """Gets AudioSet ontology details for names of sounds that interest the programmer.
     

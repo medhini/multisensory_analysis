@@ -17,9 +17,10 @@ VIDEO_CODEC = "h264"
 VIDEO_CONTAINER = "mp4"
 
 # Random video settings
-CATEGORY_WHITELIST = [] # AudioSet terms to use.  If empty, uses all of them.
+CATEGORY_WHITELIST = ["Gunshot, gunfire", "Musical instrument", "Explosion", "Computer keyboard", "Sneeze"] # AudioSet terms to use.  If empty, uses all of them.
 RANDOM_SEED = 0
-NUM_VIDEOS = 4000
+NUM_VIDEOS = 10000
+START_VIDEO = 6341
 
 def main(argv):
     # Parse args
@@ -49,8 +50,9 @@ def main(argv):
     print("Sampling clips...")
     to_download = sample_clips(youtube_clips, NUM_VIDEOS, wanted_ids)
     print("Starting downloads.")
-    for clip in to_download:
-        download_one_clip(clip, output_dir)
+    for (i, clip) in enumerate(to_download):
+        if i >= START_VIDEO:
+            download_one_clip(clip, output_dir, i)
 
     return 0
 
@@ -121,7 +123,10 @@ def download_one_clip(clip, output_dir, index=None):
     
     Keyword Arguments:
         index {int} -- Number to prepend to print statements (default: {None})
-    """    
+    
+    Returns:
+        {boolean} -- whether download succeeded
+    """
     if not output_dir.endswith("/"):
         output_dir += "/"
     output_dir += clip.labels[0].replace("/", "_") + "/"
@@ -131,47 +136,70 @@ def download_one_clip(clip, output_dir, index=None):
     video_filepath = "%s%s.%s" % (output_dir, clip.to_string(), VIDEO_CONTAINER)
     audio_filepath = "%s%s.%s" % (output_dir, clip.to_string(), AUDIO_CONTAINER)
 
+    
     youtube_url = "https://www.youtube.com/watch?v=%s" % clip.id
-    video = None
+    video = video_url = audio_url = None
     try:
         video = pafy.new(youtube_url)
+        video_url = video.getbestvideo().url
+        audio_url = video.getbestaudio().url
+    except KeyboardInterrupt as interrupt:
+        print("Download interrupted.  You should start from video #", index, "with random seed",
+            RANDOM_SEED, "next time.")
+        sys.exit(0)
     except:
         print("Error:", youtube_url, "is invalid or unavailable", file=sys.stderr)
-        return
+        return False
+
+    try:
+        video_download_args = ["ffmpeg", "-n",
+            "-ss", str(clip.trim_start), # The beginning of the trim window
+            "-i", video_url,             # Specify the input video URL
+            "-t", str(clip.get_duration()),    # Specify the duration of the output
+            "-f", VIDEO_CONTAINER,  # Specify the format (container) of the video
+            "-framerate", "30",     # Specify the framerate
+            "-vcodec", VIDEO_CODEC, # Specify the output encoding
+            video_filepath]
+
+        success = True
+        process = subprocess.Popen(video_download_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        if process.returncode != 0:
+            print(stderr.decode('utf-8'), file=sys.stderr)
+            success = False
+        else:
+            print(index, video_filepath)
+
+        audio_download_args = ["ffmpeg", "-n",
+            "-ss", str(clip.trim_start),  # The beginning of the trim window
+            "-i", audio_url,              # Specify the input video URL
+            "-t", str(clip.get_duration()),     # Specify the duration of the output
+            "-vn",                   # Suppress the video stream
+            "-ac", "2",              # Set the number of channels
+            "-sample_fmt", "s16",    # Specify the bit depth
+            "-acodec", AUDIO_CODEC,  # Specify the output encoding
+            "-ar", "44100",          # Specify the audio sample rate
+            audio_filepath]
+
+        process = subprocess.Popen(audio_download_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        if process.returncode != 0:
+            print(stderr.decode('utf-8'), file=sys.stderr)
+            success = False
+        else:
+            print(index, audio_filepath)
         
-    video_download_args = ["ffmpeg", "-n",
-        "-ss", str(clip.trim_start), # The beginning of the trim window
-        "-i", video.getbestvideo().url,   # Specify the input video URL
-        "-t", str(clip.get_duration()),    # Specify the duration of the output
-        "-f", VIDEO_CONTAINER,  # Specify the format (container) of the video
-        "-framerate", "30",     # Specify the framerate
-        "-vcodec", VIDEO_CODEC, # Specify the output encoding
-        video_filepath]
-
-    process = subprocess.Popen(video_download_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        print(stderr.decode('utf-8'), file=sys.stderr)
-    else:
-        print(index, video_filepath)
-
-    audio_download_args = ["ffmpeg", "-n",
-        "-ss", str(clip.trim_start),  # The beginning of the trim window
-        "-i", video.getbestaudio().url,    # Specify the input video URL
-        "-t", str(clip.get_duration()),     # Specify the duration of the output
-        "-vn",                   # Suppress the video stream
-        "-ac", "2",              # Set the number of channels
-        "-sample_fmt", "s16",    # Specify the bit depth
-        "-acodec", AUDIO_CODEC,  # Specify the output encoding
-        "-ar", "44100",          # Specify the audio sample rate
-        audio_filepath]
-
-    process = subprocess.Popen(audio_download_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        print(stderr.decode('utf-8'), file=sys.stderr)
-    else:
-        print(index, audio_filepath)
+        return success
+    except KeyboardInterrupt as interrupt:
+        try:
+            os.remove(video_filepath)
+            os.remove(audio_filepath)
+        except FileNotFoundError:
+            pass
+        finally:
+            print("Download interrupted.  You should start from video #", index, "with random seed",
+                RANDOM_SEED, "next time.")
+            sys.exit(0)
 
 if __name__ == "__main__":
     main(sys.argv)
