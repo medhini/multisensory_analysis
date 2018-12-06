@@ -79,7 +79,7 @@ def activation(feature_map, weights, label):
     return output
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu) # gpu device
     transform = transforms.Compose([
         transforms.ToPILImage(),
         # transforms.RandomHorizontalFlip(),
@@ -96,11 +96,7 @@ if __name__ == '__main__':
 #     checkpoint = torch.load("fixed_500.pth")
 #     model_align.load_state_dict(checkpoint.state_dict())
 
-    model_align = alignment()
-    model_align.cuda()
-
     loss_fn = nn.CrossEntropyLoss()
-
     optimizer_align = optim.Adam(model_align.parameters(), lr = args.learning_rate)
     
     if (args.is_train == 1): 
@@ -108,7 +104,8 @@ if __name__ == '__main__':
             train(epoch, train_loader, optimizer_align, model_align, loss_fn)
             if (epoch + 1)%args.val_freq == 0:
                 test(epoch, test_loader, model_align, loss_fn)
-    
+        torch.save(model_align, 'model.pth')
+        
     output = activation(feature_maps[0,:,0].detach().cpu().numpy(), weight.detach().cpu().numpy(),0)
 
 

@@ -7,6 +7,7 @@ import torch.optim as optim
 from torch.autograd import Variable
 
 class Block2(nn.Module):
+    # Resnet block for audio
     expansion = 1
 
     def __init__(self, in_channels, out_channels, kernel_size, stride, downsample=None):
@@ -39,8 +40,8 @@ class Block2(nn.Module):
         return out
 
 class Block3(nn.Module):
+    # 3D Resnet block for video
     expansion = 1
-
     def __init__(self, in_channels, out_channels, kernel_size=(1,1,1), stride=1, downsample=None, padding=0):
         super(Block3, self).__init__()
         self.conv1 = nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding=padding, dilation=1, groups=1, bias=True)
