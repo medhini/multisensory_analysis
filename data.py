@@ -19,10 +19,7 @@ import cv2
 import random
 import soundfile as sf
 
-
-
 # In[27]:
-
 
 def process_data(data_folder = 'train'):
     videos = []
