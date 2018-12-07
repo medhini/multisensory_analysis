@@ -4,12 +4,12 @@
 # In[1]:
 
 import numpy as np
-import os 
-from scipy.misc import imresize
+import os
 import scipy.signal
 import cv2
 import soundfile as sf
 import multiprocessing
+import skimage.transform
 import sys
 
 N_THREADS = 8
@@ -38,7 +38,7 @@ def process_one_file(args):
             ret, frame = cap.read()
             if ret:
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY) # convert rgb to grayscale
-                frames.append(imresize(frame,(256,256))) # resize to 256x256
+                frames.append(skimage.transform.resize(frame,(256,256),mode="constant", anti_aliasing=True)) # resize to 256x256
         desired_n_frames = FRAME_RATE * VIDEO_LENGTH
         if len(frames) > desired_n_frames: # guarantee video has at least 100 frames for 10 seconds
             frames = np.array([frames[int(i*len(frames)/float(desired_n_frames))] for i in range(desired_n_frames)]) # subsample 100 frames
