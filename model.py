@@ -93,7 +93,7 @@ class alignment(nn.Module):
         self.im_net_1 = self._make_layer(Block3, 64, 64, (3,3,3), (2,2,2), 2)
 
         """Fuse Features"""
-        self.fractional_maxpool = nn.FractionalMaxPool2d((3,1), output_size=(10, 1))
+        self.fractional_maxpool = nn.FractionalMaxPool2d((3,1), output_size=(20, 1))
         self.conv3_2 = nn.Conv3d(192, 512, (1, 1, 1))
         self.conv3_3 = nn.Conv3d(512, 128, (1, 1, 1))
         self.joint_net_1 = self._make_layer(Block3, 128, 128, (3,3,3), (2,2,2), 2)
@@ -149,7 +149,7 @@ class alignment(nn.Module):
 
         #tile audio, concatenate channel wise
         out_s = self.fractional_maxpool(out_s.unsqueeze(3)) # Reduce dimension from 25 to 8
-        out_s = out_s.squeeze(3).view(-1, 1, 1).repeat(1, 28, 28).view(-1,128,10,28,28) # Tile
+        out_s = out_s.squeeze(3).view(-1, 1, 1).repeat(1, 28, 28).view(-1,128,20,28,28) # Tile
         out_joint = torch.cat((out_s, out_im),1)
         out_joint = self.conv3_2(out_joint)
         out_joint = self.conv3_3(out_joint)
