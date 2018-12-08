@@ -17,6 +17,7 @@ import cv2
 import random
 import soundfile as sf
 
+
 class AudioDataset(Dataset):
     """Face Landmarks dataset."""
     def __init__(self, train, frames_len=40, transform=None, h5_file='/media/jeff/Backup/CS598PS/data_2682.h5', transform_label=None):
@@ -83,7 +84,61 @@ class AudioDataset(Dataset):
         
         return (transform_image, audio, label)
 
+class AudioDatasetNpz(Dataset):
+    def __init__(self, npz_file, is_train=True, len_in_s=4, transform=None, transform_label=None):
+        self.train = is_train
+        self.transform = transform
+        if self.train:
+            self.videos_train = np.load(npz_file)['videos_train']
+            self.sounds_train = np.load(npz_file)['sounds_train']
+            fps = self.videos_train.shape[1] / 10
+            self.frames_len = fps * len_in_s
+        else:
+            # Ok, I know this says train, but the npz file I saved with the test data is keyed with 'videos_train'
+            self.videos_test = np.load(npz_file)['videos_train']
+            self.sounds_test = np.load(npz_file)['sounds_train']
+            fps = self.videos_test.shape[1] / 10
+            self.frames_len = fps * len_in_s
 
+    def __len__(self):
+        if self.train:
+            return len(self.videos_train)
+        return len(self.videos_test)
 
+    def __getitem__(self, idx):
+        if self.train:
+            image = self.videos_train[idx]
+            audio = self.sounds_train[idx]
+        else:
+            image = self.videos_test[idx]
+            audio = self.sounds_test[idx]
 
-
+        # Randomly sample 4 seconds from 10 second clip
+        if random.random() < 0.5:
+            start = random.randint(0,10) # Start frame
+        else:
+            start = random.randint(50,60)
+        new_image = np.zeros((self.frames_len,256,256,1), dtype=np.uint8)
+        for i in range(self.frames_len):
+            new_image[i] = np.expand_dims(image[start+i],2)
+        
+        # Randomly align or misalign audio sample
+        if random.random() < 0.5: # align
+            audio = audio[int(start*220500/100.0):int(start*220500/100.0)+88200]
+            label = 0
+        else: # misalign
+            if start < 30: # Add shift
+                shift = random.randint(20, 60-start) # frame shift amount
+                start = start+shift
+            else: # Subtract shift
+                shift = random.randint(20, start) # frame shift amount
+                start = start-shift
+            audio = audio[int(start*220500/100.0):int(start*220500/100.0)+88200]
+            label = 1
+            
+        transform_image = np.zeros((self.frames_len,1,224,224))
+        if self.transform:
+            for i in range(self.frames_len):
+                transform_image[i] = self.transform(new_image[i]) # Transform image frames
+        
+        return (transform_image, audio, label)
