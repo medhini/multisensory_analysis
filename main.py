@@ -11,9 +11,11 @@ from torch.autograd import Variable
 from data import AudioDataset
 from model import alignment
 
+sys.path.append('data/process/')
+
 parser = argparse.ArgumentParser(description='PyTorch Audio-Visual')
 
-parser.add_argument('model_dir', help='output directory to save models & results')
+parser.add_argument('model', help='output directory to save models & results')
 
 parser.add_argument('-g', '--gpu', type=int, default=0,\
                     help='gpu device id')
@@ -57,19 +59,20 @@ def train(epoch, train_loader, optimizer_align, model_align, loss_fn):
     print("Epoch :", epoch, np.mean(losses), np.mean(accs))
 
 
-def test(epoch, test_loader, model_align, loss_fn):
+def test(epoch, test_loader, model_align, loss_fn, repeat = 5):
     accs = []
     losses = []
-    for batch_idx, (images, sounds, labels) in enumerate(train_loader):
-        with torch.no_grad():
-            images_v = Variable(images.type(torch.FloatTensor)).cuda()
-            sounds_v = Variable(sounds.type(torch.FloatTensor)).cuda()
-            labels_v = Variable(labels).cuda()
+    for i in range(repeat):
+        for batch_idx, (images, sounds, labels) in enumerate(test_loader):
+            with torch.no_grad():
+                images_v = Variable(images.type(torch.FloatTensor)).cuda()
+                sounds_v = Variable(sounds.type(torch.FloatTensor)).cuda()
+                labels_v = Variable(labels).cuda()
 
-            aligned_res, _ = model_align(sounds_v, images_v)
-            loss = loss_fn(aligned_res, labels_v)
-            losses.append(loss.item())
-            accs.append(np.mean((torch.argmax(aligned_res,1) == labels_v).detach().cpu().numpy()))
+                aligned_res, _ = model_align(sounds_v, images_v)
+                loss = loss_fn(aligned_res, labels_v)
+                losses.append(loss.item())
+                accs.append(np.mean((torch.argmax(aligned_res,1) == labels_v).detach().cpu().numpy()))
     print("Validation :", epoch, np.mean(losses), np.mean(accs))
 
 def activation(feature_map, weights, label):
@@ -80,6 +83,7 @@ def activation(feature_map, weights, label):
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu) # gpu device
+
     transform = transforms.Compose([
         transforms.ToPILImage(),
         # transforms.RandomHorizontalFlip(),
@@ -104,7 +108,7 @@ if __name__ == '__main__':
             train(epoch, train_loader, optimizer_align, model_align, loss_fn)
             if (epoch + 1)%args.val_freq == 0:
                 test(epoch, test_loader, model_align, loss_fn)
-        torch.save(model_align, 'model.pth')
+        torch.save(model_align, args.model + '.pth')
         
     output = activation(feature_maps[0,:,0].detach().cpu().numpy(), weight.detach().cpu().numpy(),0)
 

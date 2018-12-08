@@ -147,7 +147,7 @@ def download_one_clip(clip, output_dir, index=None):
             RANDOM_SEED, "next time.")
         sys.exit(0)
     except:
-        print("Error:", youtube_url, "is invalid or unavailable", file=sys.stderr)
+        print("Error:", youtube_url, "is invalid or unavailable", sys.stderr)
         return False
 
     try:
@@ -164,7 +164,7 @@ def download_one_clip(clip, output_dir, index=None):
         process = subprocess.Popen(video_download_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
         if process.returncode != 0:
-            print(stderr.decode('utf-8'), file=sys.stderr)
+            print(stderr.decode('utf-8'), sys.stderr)
             success = False
         else:
             print(index, video_filepath)
@@ -183,7 +183,7 @@ def download_one_clip(clip, output_dir, index=None):
         process = subprocess.Popen(audio_download_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
         if process.returncode != 0:
-            print(stderr.decode('utf-8'), file=sys.stderr)
+            print(stderr.decode('utf-8'), sys.stderr)
             success = False
         else:
             print(index, audio_filepath)
