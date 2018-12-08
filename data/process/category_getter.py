@@ -23,3 +23,6 @@ class CategoryGetter:
         """
         clip = self.id_to_index[video_id]
         return set([self.ontology.get_most_general_id(label) for label in clip.labels])
+
+    def get_human_readable_category(self, category_id):
+        return self.ontology.get_record_for_id(category_id)["name"]
