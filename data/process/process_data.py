@@ -9,24 +9,28 @@ import scipy.signal
 import cv2
 import soundfile as sf
 import multiprocessing
+import skimage
 import skimage.transform
 import sys
+import warnings
 
-N_THREADS = 8
+N_THREADS = 12
 MIN_SAMPLE_RATE = 22050 # Hz
 VIDEO_LENGTH = 10 # Seconds
 FRAME_RATE = 20 # FPS
 
 def process_one_file(args):
     try:
-        video_path, audio_path = args
+        video_path, audio_path, i = args
         unused, clip_name = os.path.split(video_path)
 
         # Do audio
         data, samplerate = sf.read(audio_path)
         if samplerate >= MIN_SAMPLE_RATE and len(data) >= MIN_SAMPLE_RATE * VIDEO_LENGTH: # make sure audio sample rate is consistent
             if samplerate >= MIN_SAMPLE_RATE: # Subsample to MIN_SAMPLE_RATE if we're above.
-                data = scipy.signal.resample(data[::2], MIN_SAMPLE_RATE * VIDEO_LENGTH)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    data = scipy.signal.resample(data[::2], MIN_SAMPLE_RATE * VIDEO_LENGTH)
         else:
             return None
 
@@ -38,11 +42,16 @@ def process_one_file(args):
             ret, frame = cap.read()
             if ret:
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY) # convert rgb to grayscale
-                frames.append(skimage.transform.resize(frame,(256,256),mode="constant", anti_aliasing=True)) # resize to 256x256
+                # resize to 256x256
+                resized = skimage.transform.resize(frame, (256,256), mode="constant", clip=True, anti_aliasing=True)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    frames.append(skimage.img_as_ubyte(resized))
         desired_n_frames = FRAME_RATE * VIDEO_LENGTH
         if len(frames) > desired_n_frames: # guarantee video has at least 100 frames for 10 seconds
             frames = np.array([frames[int(i*len(frames)/float(desired_n_frames))] for i in range(desired_n_frames)]) # subsample 100 frames
             youtube_id = '_'.join(clip_name.split("_")[:-2])
+            print(i, clip_name)
             return (frames, data, clip_name)
         else:
             return None
@@ -62,14 +71,18 @@ def process_data(data_folder):
     @params data_folder: string of data_folder of videos
     '''
     to_process = []
+    i = 0
     for folder in os.listdir(data_folder):
+        if not os.path.isdir(os.path.join(data_folder, folder)):
+            continue
         for filename in os.listdir(os.path.join(data_folder, folder)):
             if '.mp4' in filename: # video files
                 clip_name = filename.split('.mp4')[0]
                 video_path = os.path.join(data_folder, folder, filename)
                 audio_path = os.path.join(data_folder, folder, clip_name + '.flac')
                 if os.path.exists(audio_path):
-                    to_process.append((video_path, audio_path))
+                    to_process.append((video_path, audio_path, i))
+                    i += 1
 
     thread_pool = multiprocessing.Pool(N_THREADS)
     results = thread_pool.map(process_one_file, to_process)
@@ -87,16 +100,16 @@ if __name__ == '__main__':
         sys.exit(0)
     
     videos_train, sounds_train, clip_names_train = process_data(sys.argv[1])
-    videos_test, sounds_test, clip_names_test = process_data(sys.argv[2])
+    #videos_test, sounds_test, clip_names_test = process_data(sys.argv[2])
     print("Training set shapes:", videos_train.shape, sounds_train.shape)
-    print("Testing set shapes:", videos_test.shape, sounds_test.shape)
+    #print("Testing set shapes:", videos_test.shape, sounds_test.shape)
 
     np.savez_compressed(
         sys.argv[3],
         videos_train=videos_train, 
         sounds_train=sounds_train,
         clip_names_train=clip_names_train,
-        videos_test=videos_test,
-        sounds_test=sounds_test,
-        clip_names_test=clip_names_test
+        #videos_test=videos_test,
+        #sounds_test=sounds_test,
+        #clip_names_test=clip_names_test
     )
