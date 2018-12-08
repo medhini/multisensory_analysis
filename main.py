@@ -106,13 +106,13 @@ if __name__ == '__main__':
     optimizer_align = optim.SGD(model_align.parameters(), lr = args.learning_rate, momentum=0.9)
     
     if (args.is_train == 1): 
-        for epoch in range(args.epochs):
-            train(epoch, train_loader, optimizer_align, model_align, loss_fn)
-            if (epoch + 1)%args.val_freq == 0:
-                test(epoch, test_loader, model_align, loss_fn)
+        try:
+            for epoch in range(args.epochs):
+                train(epoch, train_loader, optimizer_align, model_align, loss_fn)
+                if (epoch + 1)%args.val_freq == 0:
+                    test(epoch, test_loader, model_align, loss_fn)
+        except KeyboardInterrupt:
+            pass
         torch.save(model_align, args.model + '.pth')
         
     output = activation(feature_maps[0,:,0].detach().cpu().numpy(), weight.detach().cpu().numpy(),0)
-
-
-   
