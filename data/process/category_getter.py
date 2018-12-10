@@ -24,5 +24,24 @@ class CategoryGetter:
         clip = self.id_to_index[video_id]
         return set([self.ontology.get_most_general_id(label) for label in clip.labels])
 
+    def get_specific_categories_for_video(self, video_id):
+        """Gets a list of category ids for a video that have no children in the ontology; i.e. can't get more specific
+        
+        Arguments:
+            video_id {string} -- YouTube video id
+        
+        Returns:
+            string[] -- list of ontology ids
+        """
+        clip = self.id_to_index[video_id]
+        return [label for label in clip.labels if self.ontology.is_specific(label)]
+
     def get_human_readable_category(self, category_id):
+        """
+        Arguments:
+            category_id {string} -- ontology category id
+        
+        Returns:
+            string -- human-readable translation of the ontology category id
+        """
         return self.ontology.get_record_for_id(category_id)["name"]

@@ -23,6 +23,15 @@ class Ontology:
             answer_id = self.parent_id_for_id[answer_id]
         return answer_id
 
+    def is_specific(self, id):
+        """Returns true if the id has no children 
+        
+        Arguments:
+            id {string} - category id
+        """
+        record = self.record_for_id[id]
+        return len(record["child_ids"]) == 0
+
 def get_records(whitelist):
     """Gets AudioSet ontology details for names of sounds that interest the programmer.
     
