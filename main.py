@@ -110,7 +110,7 @@ if __name__ == '__main__':
                 test(epoch, test_loader, model_align, loss_fn)
         torch.save(model_align, args.model + '.pth')
         
-    output = activation(feature_maps[0,:,0].detach().cpu().numpy(), weight.detach().cpu().numpy(),0)
+#     output = activation(feature_maps[0,:,0].detach().cpu().numpy(), weight.detach().cpu().numpy(),0)
 
 
    
