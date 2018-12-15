@@ -19,6 +19,7 @@ MIN_SAMPLE_RATE = 22050 # Hz
 MIN_VIDEO_LENGTH = 6 # Seconds
 FRAME_RATE = 10 # FPS
 RESIZE_SIZE = 256
+TEST_SET_FILE = os.path.dirname(os.path.realpath(__file__)) + "/testlist01.txt"
 
 def process_one_file(args):
     try:
@@ -33,6 +34,8 @@ def process_one_file(args):
                     data = scipy.signal.resample(data[::2], MIN_SAMPLE_RATE * MIN_VIDEO_LENGTH)
         else:
             return None
+        if len(data.shape) < 2: # Is mono?  If so, duplicate the single channel is it's "stereo"
+            data = np.vstack((data, data))
 
         # Do video
         cap = cv2.VideoCapture(video_path)
@@ -77,14 +80,15 @@ def process_data(videos_dir, audio_dir):
     categories = []
     clip_names = []
     for audio_file in os.listdir(audio_dir):
-        category = audio_file.split("_")[1]
-        base_name = audio_file.rstrip(".wav")
-        video_file = base_name + ".avi"
-        video_path = os.path.join(videos_dir, category, video_file)
-        audio_path = os.path.join(audio_dir, audio_file)
-        to_process.append((video_path, audio_path))
-        categories.append(category)
-        clip_names.append(video_file)
+        if audio_file.endswith(".wav"):
+            category = audio_file.split("_")[1]
+            base_name = audio_file.rstrip(".wav")
+            video_file = base_name + ".avi"
+            video_path = os.path.join(videos_dir, category, video_file)
+            audio_path = os.path.join(audio_dir, audio_file)
+            to_process.append((video_path, audio_path))
+            categories.append(category)
+            clip_names.append(video_file)
 
     thread_pool = multiprocessing.Pool(N_THREADS)
     results = thread_pool.map(process_one_file, to_process)
@@ -93,12 +97,10 @@ def process_data(videos_dir, audio_dir):
 
     results = [results[i] for i in good_indices]
     videos, sounds = zip(*results)
-    videos = np.array(videos)
-    sounds = np.array(sounds)
     categories = np.array([categories[i] for i in good_indices])
     clip_names = np.array([clip_names[i] for i in good_indices])
 
-    return videos, sounds, categories, clip_names
+    return np.array(videos), np.array(sounds), categories, clip_names
 
 def get_test_clips(test_set_file):
     with open(test_set_file, "r") as f:
@@ -106,11 +108,11 @@ def get_test_clips(test_set_file):
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
-        print("Usage:", sys.argv[0], "[videos folder] [audio folder] [test video list] [out file name]")
+        print("Usage:", sys.argv[0], "[videos folder] [audio folder] [out file name]")
         sys.exit(0)
     
     videos, sounds, categories, clip_names = process_data(sys.argv[1], sys.argv[2])
-    test_clips = get_test_clips(sys.argv[3])
+    test_clips = get_test_clips(TEST_SET_FILE)
     train_indices = []
     test_indices = []
     for i, clip_name in enumerate(clip_names):
@@ -120,7 +122,7 @@ if __name__ == '__main__':
             train_indices.append(i)
 
     np.savez_compressed(
-        sys.argv[4],
+        sys.argv[3],
         videos_train=videos[train_indices], 
         sounds_train=sounds[train_indices],
         categories_train=categories[train_indices],
