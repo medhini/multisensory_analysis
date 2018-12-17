@@ -1,4 +1,5 @@
 import os
+import sys
 import os.path as osp
 import argparse
 import numpy as np 
@@ -8,7 +9,7 @@ import torchvision.transforms as transforms
 import torch.optim as optim
 import torch.nn as nn
 from torch.autograd import Variable
-from data import AudioDataset
+from data import AudioDatasetNpz
 from model import alignment
 
 sys.path.append('data/process/')
@@ -82,7 +83,7 @@ def activation(feature_map, weights, label):
     return output
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu) # gpu device
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu) # gpu device.  '0, 1' for both.
 
     transform = transforms.Compose([
         transforms.ToPILImage(),
@@ -90,27 +91,28 @@ if __name__ == '__main__':
         transforms.RandomCrop(224),
         transforms.ToTensor()])
 
-    train_dataset = AudioDataset(train=True,transform=transform, h5_file='/media/jeff/Backup/CS598PS/data.h5')
-    test_dataset = AudioDataset(train=False,transform=transform, h5_file='/media/jeff/Backup/CS598PS/data.h5')
+    train_dataset = AudioDatasetNpz('/home/silas/train10k.npz', is_train=True, transform=transform)
+    test_dataset = AudioDatasetNpz('/home/silas/test2k.npz', is_train=False, transform=transform)
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=args.batchsize, shuffle=True, num_workers=4)
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=args.batchsize, shuffle=False, num_workers=4)
 
-    model_align = alignment().cuda()
+    model_align = nn.DataParallel(alignment()).cuda()
 #     checkpoint = torch.load("fixed_500.pth")
 #     model_align.load_state_dict(checkpoint.state_dict())
 
     loss_fn = nn.CrossEntropyLoss()
-    optimizer_align = optim.Adam(model_align.parameters(), lr = args.learning_rate)
+    #optimizer_align = optim.Adam(model_align.parameters(), lr = args.learning_rate)
+    optimizer_align = optim.SGD(model_align.parameters(), lr = args.learning_rate, momentum=0.9)
     
     if (args.is_train == 1): 
-        for epoch in range(args.epochs):
-            train(epoch, train_loader, optimizer_align, model_align, loss_fn)
-            if (epoch + 1)%args.val_freq == 0:
-                test(epoch, test_loader, model_align, loss_fn)
+        try:
+            for epoch in range(args.epochs):
+                train(epoch, train_loader, optimizer_align, model_align, loss_fn)
+                if (epoch + 1)%args.val_freq == 0:
+                    test(epoch, test_loader, model_align, loss_fn)
+        except KeyboardInterrupt:
+            pass
         torch.save(model_align, args.model + '.pth')
         
     output = activation(feature_maps[0,:,0].detach().cpu().numpy(), weight.detach().cpu().numpy(),0)
-
-
-   

@@ -17,7 +17,7 @@ import warnings
 N_THREADS = 12
 MIN_SAMPLE_RATE = 22050 # Hz
 VIDEO_LENGTH = 10 # Seconds
-FRAME_RATE = 20 # FPS
+FRAME_RATE = 10 # FPS
 
 def process_one_file(args):
     try:
